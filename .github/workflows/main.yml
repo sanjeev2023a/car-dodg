@@ -5,22 +5,79 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+
       - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
       - name: Unzip & Build Signed APK
         run: |
           unzip -o *.zip
           cd TrafficDodge2D_HighwayLegend
+          rm -f app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           keytool -genkeypair -v -keystore release.jks -alias car_dodge -keyalg RSA -keysize 2048 -validity 9125 -storepass CarDodge2026 -keypass CarDodge2026 -dname "CN=CarDodge, OU=Games, O=CarDodge, L=Patna, ST=Bihar, C=IN"
-          gradle assembleRelease bundleRelease -Pandroid.injected.signing.store.file=$PWD/release.jks -Pandroid.injected.signing.store.password=CarDodge2026 -Pandroid.injected.signing.key.alias=car_dodge -Pandroid.injected.signing.key.password=CarDodge2026
+          cat << 'EOF' > app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.highwaylegend.trafficdodge2d"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.highwaylegend.trafficdodge2d"
+                  minSdk = 24
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              signingConfigs {
+                  create("release") {
+                      storeFile = file("../release.jks")
+                      storePassword = "CarDodge2026"
+                      keyAlias = "car_dodge"
+                      keyPassword = "CarDodge2026"
+                      enableV1Signing = true
+                      enableV2Signing = true
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig = signingConfigs.getByName("release")
+                      isMinifyEnabled = false
+                      isShrinkResources = false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          dependencies {
+              implementation("androidx.core:core-ktx:1.13.1")
+              implementation("androidx.appcompat:appcompat:1.7.0")
+              implementation("com.google.android.material:material:1.12.0")
+              implementation("androidx.activity:activity-ktx:1.9.2")
+              implementation("com.google.android.gms:play-services-ads:23.3.0")
+          }
+          EOF
+          gradle assembleRelease bundleRelease --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
           name: CarDodge-Ready-To-Install-APK
           path: TrafficDodge2D_HighwayLegend/app/build/outputs/apk/release/*.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: CarDodge-PlayStore-Bundle-AAB
           path: TrafficDodge2D_HighwayLegend/app/build/outputs/bundle/release/*.aab
+          
