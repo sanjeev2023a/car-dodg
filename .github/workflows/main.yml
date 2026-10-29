@@ -1,0 +1,26 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v3
+      - name: Unzip & Build Signed APK
+        run: |
+          unzip -o *.zip
+          cd TrafficDodge2D_HighwayLegend
+          keytool -genkeypair -v -keystore release.jks -alias car_dodge -keyalg RSA -keysize 2048 -validity 9125 -storepass CarDodge2026 -keypass CarDodge2026 -dname "CN=CarDodge, OU=Games, O=CarDodge, L=Patna, ST=Bihar, C=IN"
+          gradle assembleRelease bundleRelease -Pandroid.injected.signing.store.file=$PWD/release.jks -Pandroid.injected.signing.store.password=CarDodge2026 -Pandroid.injected.signing.key.alias=car_dodge -Pandroid.injected.signing.key.password=CarDodge2026
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CarDodge-Ready-To-Install-APK
+          path: TrafficDodge2D_HighwayLegend/app/build/outputs/apk/release/*.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CarDodge-PlayStore-Bundle-AAB
+          path: TrafficDodge2D_HighwayLegend/app/build/outputs/bundle/release/*.aab
